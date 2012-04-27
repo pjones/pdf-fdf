@@ -1,0 +1,81 @@
+#!/usr/bin/env/ruby
+
+################################################################################
+require('ostruct')
+require('optparse')
+require('pdf/fdf')
+
+################################################################################
+class Command
+
+  ##############################################################################
+  DEFAULT_OPTIONS = {
+    :generate_fdf  => false,
+    :load_fields   => false,
+    :number_fields => false,
+  }
+
+  ##############################################################################
+  attr_reader(:options)
+
+  ##############################################################################
+  def initialize
+    @options = OpenStruct.new(DEFAULT_OPTIONS)
+
+    OptionParser.new do |p|
+      p.on('-h', '--help', 'Show this option summary') do
+        $stdout.puts(p); exit
+      end
+
+      p.on('-g', '--generate-fdf', 'Generate an FDF file from YAML files') do
+        options.generate_fdf = true
+      end
+
+      p.on('-l', '--load-fields', 'Load pdftk dump, generate YAML file') do
+        options.load_fields = true
+      end
+
+      p.on('-n', '--number-fields', 'Give each field a unique value') do
+        options.number_fields = true
+      end
+    end.parse!(ARGV)
+  end
+
+  ##############################################################################
+  def run
+    if options.generate_fdf
+      generate_fdf
+    elsif options.load_fields
+      load_fields
+    else
+      raise("no operation given, see --help")
+    end
+  end
+
+  ##############################################################################
+  private
+
+  ##############################################################################
+  def generate_fdf
+    loader = PDF::FDF::FieldLoader.new
+    ARGV.each {|file| loader.merge(file)}
+
+    gen = PDF::FDF::Gen.new(loader.fields)
+    $stdout.write(gen.to_fdf)
+  end
+
+  ##############################################################################
+  def load_fields
+    parser = PDF::FDF::DumpFieldsParser.new
+    parser.parse(ARGV.size == 1 ? File.open(ARGV.first) : $stdin)
+    $stdout.puts(parser.generate_yaml(options.number_fields))
+  end
+end
+
+################################################################################
+begin
+  Command.new.run
+rescue RuntimeError => e
+  $stderr.puts(File.basename($0) + ": ERROR: #{e}")
+  exit(1)
+end
