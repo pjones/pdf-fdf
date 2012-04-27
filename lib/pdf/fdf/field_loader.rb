@@ -28,8 +28,15 @@ class PDF::FDF::FieldLoader
   ##############################################################################
   def find (new_field)
     @fields.detect do |old_field|
-      (!new_field['name'].empty? && new_field['name'] == old_field.name) ||
-        (!new_field['alias'].empty? && new_field['alias'] == old_field.alias)
+      match?(old_field, new_field, 'name') ||
+        match?(old_field, new_field, 'alias')
     end
+  end
+
+  ##############################################################################
+  def match? (old_field, new_field, attr)
+    new_field[attr] &&
+      !new_field[attr].empty? &&
+      new_field[attr] == old_field.send(attr)
   end
 end
